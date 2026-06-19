@@ -1,78 +1,77 @@
 import type { Article, ContactFormData } from "./types";
-import { mockArticles } from "@/data/mockNews";
-// import { ENDPOINTS } from "./endpoints";
+import { ENDPOINTS } from "./endpoints";
 
-/**
- * NOTE: All functions currently return mock data.
- * Replace the mock returns with `fetch(ENDPOINTS.xxx)` (or axios) when the
- * backend is ready. The mock delay simulates network latency.
- */
-const delay = <T>(data: T, ms = 350): Promise<T> =>
-  new Promise((resolve) => setTimeout(() => resolve(data), ms));
+async function request<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers ?? {}),
+    },
+    ...init,
+  });
+
+  if (response.status === 404) {
+    return null as T;
+  }
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const message =
+      data && typeof data === "object" && "error" in data
+        ? String(data.error)
+        : `Request failed with status ${response.status}`;
+    throw new Error(message);
+  }
+
+  return data as T;
+}
 
 export async function getAllNews(): Promise<Article[]> {
-  // return fetch(ENDPOINTS.allNews).then(r => r.json());
-  return delay(mockArticles);
+  return request<Article[]>(ENDPOINTS.allNews);
 }
 
 export async function getLatestNews(): Promise<Article[]> {
-  // return fetch(ENDPOINTS.latestNews).then(r => r.json());
-  const sorted = [...mockArticles].sort(
-    (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
-  );
-  return delay(sorted);
+  return request<Article[]>(ENDPOINTS.latestNews);
 }
 
 export async function getTrendingNews(): Promise<Article[]> {
-  // return fetch(ENDPOINTS.trendingNews).then(r => r.json());
-  return delay(mockArticles.filter((a) => a.isTrending));
+  return request<Article[]>(ENDPOINTS.trendingNews);
 }
 
 export async function getNewsByCategory(category: string): Promise<Article[]> {
-  // return fetch(ENDPOINTS.newsByCategory(category)).then(r => r.json());
-  const filtered = mockArticles.filter(
-    (a) => a.category.toLowerCase() === category.toLowerCase(),
-  );
-  return delay(filtered);
+  return request<Article[]>(ENDPOINTS.newsByCategory(category));
 }
 
 export async function getNewsBySlug(slug: string): Promise<Article | null> {
-  // return fetch(ENDPOINTS.newsBySlug(slug)).then(r => r.json());
-  return delay(mockArticles.find((a) => a.slug === slug) ?? null);
+  return request<Article | null>(ENDPOINTS.newsBySlug(slug));
 }
 
 export async function searchNews(query: string): Promise<Article[]> {
-  // return fetch(ENDPOINTS.searchNews(query)).then(r => r.json());
-  const q = query.trim().toLowerCase();
-  if (!q) return delay([]);
-  return delay(
-    mockArticles.filter(
-      (a) =>
-        a.title.toLowerCase().includes(q) ||
-        a.summary.toLowerCase().includes(q) ||
-        a.tags.some((t) => t.toLowerCase().includes(q)) ||
-        a.category.toLowerCase().includes(q),
-    ),
-  );
+  if (!query.trim()) return [];
+  return request<Article[]>(ENDPOINTS.searchNews(query));
 }
 
 export async function submitNewsletter(email: string): Promise<{ ok: true }> {
-  // return fetch(ENDPOINTS.newsletter, { method: "POST", body: JSON.stringify({ email }) })
-  console.info("[mock] newsletter subscription:", email);
-  return delay({ ok: true }, 600);
+  return request<{ ok: true }>(ENDPOINTS.newsletter, {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
 }
 
 export async function submitContactForm(data: ContactFormData): Promise<{ ok: true }> {
-  // return fetch(ENDPOINTS.contact, { method: "POST", body: JSON.stringify(data) })
-  console.info("[mock] contact submission:", data);
-  return delay({ ok: true }, 700);
+  return request<{ ok: true }>(ENDPOINTS.contact, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 }
 
 export async function submitComment(
   articleId: string,
   comment: { author: string; content: string },
 ): Promise<{ ok: true }> {
-  // return fetch(ENDPOINTS.comments, { method: "POST", body: JSON.stringify({ articleId, ...comment }) })
-  console.info("[mock] comment on", articleId, comment);
-  return delay({ ok: true }, 500);
+  return request<{ ok: true }>(ENDPOINTS.comments, {
+    method: "POST",
+    body: JSON.stringify({ articleId, ...comment }),
+  });
 }
